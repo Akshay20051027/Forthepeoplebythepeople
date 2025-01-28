@@ -1,59 +1,112 @@
-function initMap() {
-    const map = new google.maps.Map(document.getElementById('map'), {
-      center: { lat: 0, lng: 0 }, // Set to initial coordinates
-      zoom: 2,
+import { db } from './firebase.js';
+import { collection, addDoc, getDocs } from "firebase/firestore";
+
+let donationChart; // Store the chart instance globally to manage its state
+
+function renderDonationChart() {
+  getData('donations', data => {
+    const ctx = document.getElementById('donationChart').getContext('2d');
+    if (donationChart) {
+      donationChart.destroy(); // Destroy the previous chart instance
+    }
+    donationChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: data.map(item => `${item.item} - ${item.location}`),
+        datasets: [{
+          label: 'Donations',
+          data: data.map(item => item.amount),
+          backgroundColor: 'rgba(54, 162, 235, 0.6)',
+        }],
+      },
     });
-  
-    getData('donations', donations => {
-      donations.forEach(donation => {
-        new google.maps.Marker({
-          position: getLatLngFromLocation(donation.location),
-          map: map,
-          title: `${donation.item} - ${donation.amount} units`
-        });
-      });
-    });
-  }
-  
-  function getLatLngFromLocation(location) {
-    // Dummy function to convert location names to lat-lng coordinates
-    const locations = {
-      'Location A': { lat: 10.0, lng: 10.0 },
-      'Location B': { lat: 20.0, lng: 20.0 },
-      'Location C': { lat: 30.0, lng: 30.0 },
-      'Location D': { lat: 40.0, lng: 40.0 },
-      'Location E': { lat: 50.0, lng: 50.0 }
-    };
-    return locations[location] || { lat: 0, lng: 0 };
-  }
-  
-  function displayDonorResponses() {
-    getData('responses', responses => {
-      const donorResponses = document.getElementById('donorResponses');
-      donorResponses.innerHTML = '';
-      responses.forEach(response => {
-        const listItem = document.createElement('li');
-        listItem.textContent = `Need ID: ${response.needId} - Response: ${response.response} (Date: ${response.date})`;
-        donorResponses.appendChild(listItem);
-      });
-    });
-  }
-  
-  document.getElementById('needForm').addEventListener('submit', event => {
-    event.preventDefault();
-    const formData = new FormData(event.target);
-    const need = {
-      item: formData.get('item'),
-      urgency: parseInt(formData.get('urgency'))
-    };
-    addData('needs', need);
-    alert('Your need has been submitted.');
-    event.target.reset();
   });
-  
-  // Fetch and display data upon receiver login
-  document.addEventListener('DOMContentLoaded', () => {
-    initMap();
-    displayDonorResponses();
+}
+
+function displayEssentialNeeds() {
+  getData('needs', needs => {
+    const needsList = document.getElementById('needsList');
+    needsList.innerHTML = '';
+    needs.forEach(need => {
+      const listItem = document.createElement('li');
+      listItem.textContent = `${need.item} - Urgency: ${need.urgency}`;
+      const respondButton = document.createElement('button');
+      respondButton.textContent = 'Respond';
+      respondButton.onclick = () => respondToNeed(need);
+      listItem.appendChild(respondButton);
+      needsList.appendChild(listItem);
+    });
   });
-  
+}
+
+function respondToNeed(need) {
+  const response = prompt('Enter your response:');
+  if (response) {
+    const responseData = {
+      needId: need.id,
+      response,
+      date: new Date().toLocaleDateString()
+    };
+    addData('responses', responseData);
+    alert('Response submitted successfully.');
+    displayResponses();
+  }
+}
+
+function displayResponses() {
+  getData('responses', responses => {
+    const receiverRequests = document.getElementById('receiverRequests');
+    receiverRequests.innerHTML = '';
+    responses.forEach(response => {
+      const listItem = document.createElement('li');
+      listItem.textContent = `Need ID: ${response.needId} - Response: ${response.response} (Date: ${response.date})`;
+      receiverRequests.appendChild(listItem);
+    });
+  });
+}
+
+document.getElementById('addDonationForm').addEventListener('submit', event => {
+  event.preventDefault();
+  const formData = new FormData(event.target);
+  const donation = {
+    item: formData.get('item'),
+    amount: parseInt(formData.get('amount')),
+    location: formData.get('location'),
+    date: new Date().toLocaleDateString()
+  };
+  addData('donations', donation);
+  renderDonationChart();
+  alert('Donation added successfully.');
+  event.target.reset();
+});
+
+// Fetch and display data upon donor login
+document.addEventListener('DOMContentLoaded', () => {
+  renderDonationChart();
+  displayEssentialNeeds();
+  displayResponses();
+});
+
+// Add data to Firestore
+async function addData(storeName, data) {
+  try {
+    await addDoc(collection(db, storeName), data);
+    console.log(`Data added to ${storeName}`);
+  } catch (e) {
+    console.error(`Error adding data to ${storeName}`, e);
+  }
+}
+
+// Get data from Firestore
+async function getData(storeName, callback) {
+  try {
+    const querySnapshot = await getDocs(collection(db, storeName));
+    const data = [];
+    querySnapshot.forEach(doc => {
+      data.push(doc.data());
+    });
+    callback(data);
+  } catch (e) {
+    console.error(`Error retrieving data from ${storeName}`, e);
+  }
+}
