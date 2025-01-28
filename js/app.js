@@ -10,7 +10,7 @@ function showRegistration() {
   document.getElementById('register').style.display = 'block';
 }
 
-document.getElementById('registerForm').addEventListener('submit', async event => {
+document.getElementById('registerForm').addEventListener('submit', event => {
   event.preventDefault();
   const formData = new FormData(event.target);
   const username = formData.get('username');
@@ -24,7 +24,7 @@ document.getElementById('registerForm').addEventListener('submit', async event =
   event.target.reset();
 });
 
-document.getElementById('loginForm').addEventListener('submit', async event => {
+document.getElementById('loginForm').addEventListener('submit', event => {
   event.preventDefault();
   const formData = new FormData(event.target);
   const username = formData.get('username');
