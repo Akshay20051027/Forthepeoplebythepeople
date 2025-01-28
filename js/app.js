@@ -1,65 +1,8 @@
-let db;
-const request = indexedDB.open('DisasterReliefDB', 1);
+import { db } from './firebase.js';
+import { collection, addDoc, getDocs, doc, getDoc, setDoc } from "firebase/firestore";
 
-request.onupgradeneeded = event => {
-  db = event.target.result;
-  db.createObjectStore('donations', { keyPath: 'id', autoIncrement: true });
-  db.createObjectStore('needs', { keyPath: 'id', autoIncrement: true });
-  db.createObjectStore('users', { keyPath: 'username' });
-  db.createObjectStore('responses', { keyPath: 'id', autoIncrement: true });
-  console.log("Database setup complete");
-};
-
-request.onsuccess = event => {
-  db = event.target.result;
-  addDefaultDonations();
-  console.log("Database opened successfully");
-
-  // Call functions dependent on database being ready
-  displayInitialData();
-};
-
-request.onerror = event => {
-  console.error('IndexedDB error:', event.target.errorCode);
-};
-
-function addData(storeName, data) {
-  if (!db) {
-    console.error('Database is not initialized');
-    return;
-  }
-  const transaction = db.transaction([storeName], 'readwrite');
-  const store = transaction.objectStore(storeName);
-  const request = store.add(data);
-
-  request.onsuccess = () => {
-    console.log(`Data added to ${storeName}`);
-  };
-
-  request.onerror = () => {
-    console.error(`Error adding data to ${storeName}`);
-  };
-}
-
-function getData(storeName, callback) {
-  if (!db) {
-    console.error('Database is not initialized');
-    return;
-  }
-  const transaction = db.transaction([storeName], 'readonly');
-  const store = transaction.objectStore(storeName);
-  const request = store.getAll();
-
-  request.onsuccess = () => {
-    callback(request.result);
-  };
-
-  request.onerror = () => {
-    console.error(`Error retrieving data from ${storeName}`);
-  };
-}
-
-function addDefaultDonations() {
+// Add default donations to Firestore
+async function addDefaultDonations() {
   const defaultDonations = [
     { item: 'Food', amount: 100, location: 'Location A', date: new Date().toLocaleDateString() },
     { item: 'Water', amount: 200, location: 'Location B', date: new Date().toLocaleDateString() },
@@ -72,69 +15,97 @@ function addDefaultDonations() {
   console.log("Default donations added");
 }
 
+// Add data to Firestore
+async function addData(storeName, data) {
+  try {
+    await addDoc(collection(db, storeName), data);
+    console.log(`Data added to ${storeName}`);
+  } catch (e) {
+    console.error(`Error adding data to ${storeName}`, e);
+  }
+}
+
+// Get data from Firestore
+async function getData(storeName, callback) {
+  try {
+    const querySnapshot = await getDocs(collection(db, storeName));
+    const data = [];
+    querySnapshot.forEach(doc => {
+      data.push(doc.data());
+    });
+    callback(data);
+  } catch (e) {
+    console.error(`Error retrieving data from ${storeName}`, e);
+  }
+}
+
+// Show login form
 function showLogin() {
   document.getElementById('login').style.display = 'block';
   document.getElementById('register').style.display = 'none';
 }
 
+// Show registration form
 function showRegistration() {
   document.getElementById('login').style.display = 'none';
   document.getElementById('register').style.display = 'block';
 }
 
-document.getElementById('registerForm').addEventListener('submit', event => {
+// Register user
+document.getElementById('registerForm').addEventListener('submit', async event => {
   event.preventDefault();
   const formData = new FormData(event.target);
   const username = formData.get('username');
   const password = formData.get('password');
   const role = formData.get('role');
 
-  addData('users', { username, password, role });
-  alert('Registration successful. Please log in.');
-  showLogin();
-  event.target.reset();
-  console.log(`User registered: ${username}, Role: ${role}`);
+  try {
+    await setDoc(doc(db, 'users', username), { username, password, role });
+    alert('Registration successful. Please log in.');
+    showLogin();
+    event.target.reset();
+    console.log(`User registered: ${username}, Role: ${role}`);
+  } catch (e) {
+    console.error('Error adding data to users', e);
+  }
 });
 
-document.getElementById('loginForm').addEventListener('submit', event => {
+// Login user
+document.getElementById('loginForm').addEventListener('submit', async event => {
   event.preventDefault();
   const formData = new FormData(event.target);
   const username = formData.get('username');
   const password = formData.get('password');
   const role = formData.get('role');
 
-  if (!db) {
-    console.error('Database is not initialized');
-    return;
-  }
-
-  const transaction = db.transaction(['users'], 'readonly');
-  const store = transaction.objectStore('users');
-  const request = store.get(username);
-
-  request.onsuccess = () => {
-    const user = request.result;
-    if (user && user.password === password && user.role === role) {
-      console.log(`User logged in: ${username}, Role: ${role}`);
-      if (user.role === 'donor') {
-        document.getElementById('login').style.display = 'none';
-        document.getElementById('donorDashboard').style.display = 'block';
-        displayInitialData();
-      } else if (user.role === 'receiver') {
-        document.getElementById('login').style.display = 'none';
-        document.getElementById('receiverDashboard').style.display = 'block';
-        displayInitialData();
+  try {
+    const docRef = doc(db, 'users', username);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const user = docSnap.data();
+      if (user.password === password && user.role === role) {
+        console.log(`User logged in: ${username}, Role: ${role}`);
+        if (user.role === 'donor') {
+          document.getElementById('login').style.display = 'none';
+          document.getElementById('donorDashboard').style.display = 'block';
+          displayInitialData();
+        } else if (user.role === 'receiver') {
+          document.getElementById('login').style.display = 'none';
+          document.getElementById('receiverDashboard').style.display = 'block';
+          displayInitialData();
+        }
+      } else {
+        alert('Invalid username, password, or role.');
       }
     } else {
-      alert('Invalid username, password, or role.');
+      alert('User does not exist.');
     }
-  };
-
-  request.onerror = () => {
-    console.error('Error retrieving user data');
-  };
+  } catch (e) {
+    console.error('Error retrieving user data', e);
+  }
 });
 
+// Display initial data
 function displayInitialData() {
   // Functions to display initial data for both donor and receiver
   renderDonationChart();
@@ -143,3 +114,6 @@ function displayInitialData() {
   initMap();
   displayDonorResponses();
 }
+
+// Initialize default donations
+addDefaultDonations();
