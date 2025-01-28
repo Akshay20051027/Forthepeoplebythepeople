@@ -1,9 +1,8 @@
-  db = event.target.result;
-  addDefaultDonations();
-  console.log("Database opened successfully");
-  // Call functions dependent on database being ready
-  displayInitialData();
-};
+db = event.target.result;
+addDefaultDonations();
+console.log("Database opened successfully");
+// Call functions dependent on database being ready
+displayInitialData();
 
 request.onerror = event => {
   console.error('IndexedDB error:', event.target.errorCode);
@@ -17,11 +16,14 @@ function addData(storeName, data) {
   const transaction = db.transaction([storeName], 'readwrite');
   const store = transaction.objectStore(storeName);
   const request = store.add(data);
-  
+
   request.onsuccess = () => {
     console.log(`Data added to ${storeName}`);
   };
-@@ -35,6 +42,10 @@ function addData(storeName, data) {
+
+  request.onerror = () => {
+    console.error(`Error adding data to ${storeName}`);
+  };
 }
 
 function getData(storeName, callback) {
@@ -32,7 +34,20 @@ function getData(storeName, callback) {
   const transaction = db.transaction([storeName], 'readonly');
   const store = transaction.objectStore(storeName);
   const request = store.getAll();
-@@ -92,6 +103,11 @@ document.getElementById('loginForm').addEventListener('submit', event => {
+
+  request.onsuccess = event => {
+    callback(event.target.result);
+  };
+
+  request.onerror = () => {
+    console.error(`Error retrieving data from ${storeName}`);
+  };
+}
+
+document.getElementById('loginForm').addEventListener('submit', event => {
+  event.preventDefault();
+  const formData = new FormData(event.target);
+  const username = formData.get('username');
   const password = formData.get('password');
   const role = formData.get('role');
 
@@ -43,7 +58,10 @@ function getData(storeName, callback) {
   const transaction = db.transaction(['users'], 'readonly');
   const store = transaction.objectStore('users');
   const request = store.get(username);
-@@ -103,9 +119,11 @@ document.getElementById('loginForm').addEventListener('submit', event => {
+
+  request.onsuccess = event => {
+    const user = event.target.result;
+    if (user && user.password === password && user.role === role) {
       if (user.role === 'donor') {
         document.getElementById('login').style.display = 'none';
         document.getElementById('donorDashboard').style.display = 'block';
@@ -55,10 +73,14 @@ function getData(storeName, callback) {
       }
     } else {
       alert('Invalid username, password, or role.');
-@@ -116,3 +134,12 @@ document.getElementById('loginForm').addEventListener('submit', event => {
+    }
+  };
+
+  request.onerror = () => {
     console.error('Error retrieving user data');
   };
 });
+
 function displayInitialData() {
   // Functions to display initial data for both donor and receiver
   renderDonationChart();
