@@ -1,6 +1,4 @@
-import { db } from './firebase.js';
-import { collection, addDoc, getDocs } from "firebase/firestore";
-
+// donor.js
 let donationChart; // Store the chart instance globally to manage its state
 
 function renderDonationChart() {
@@ -90,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Add data to Firestore
 async function addData(storeName, data) {
   try {
-    await addDoc(collection(db, storeName), data);
+    await db.collection(storeName).add(data);
     console.log(`Data added to ${storeName}`);
   } catch (e) {
     console.error(`Error adding data to ${storeName}`, e);
@@ -100,7 +98,7 @@ async function addData(storeName, data) {
 // Get data from Firestore
 async function getData(storeName, callback) {
   try {
-    const querySnapshot = await getDocs(collection(db, storeName));
+    const querySnapshot = await db.collection(storeName).get();
     const data = [];
     querySnapshot.forEach(doc => {
       data.push(doc.data());
