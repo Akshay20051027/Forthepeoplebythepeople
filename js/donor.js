@@ -1,4 +1,5 @@
 let donationChart; // Store the chart instance globally to manage its state
+
 function renderDonationChart() {
   getData('donations', data => {
     const ctx = document.getElementById('donationChart').getContext('2d');
@@ -18,6 +19,7 @@ function renderDonationChart() {
     });
   });
 }
+
 function displayEssentialNeeds() {
   getData('needs', needs => {
     const needsList = document.getElementById('needsList');
@@ -33,6 +35,7 @@ function displayEssentialNeeds() {
     });
   });
 }
+
 function respondToNeed(need) {
   const response = prompt('Enter your response:');
   if (response) {
@@ -46,6 +49,7 @@ function respondToNeed(need) {
     displayResponses();
   }
 }
+
 function displayResponses() {
   getData('responses', responses => {
     const receiverRequests = document.getElementById('receiverRequests');
@@ -57,6 +61,7 @@ function displayResponses() {
     });
   });
 }
+
 document.getElementById('addDonationForm').addEventListener('submit', event => {
   event.preventDefault();
   const formData = new FormData(event.target);
@@ -71,6 +76,7 @@ document.getElementById('addDonationForm').addEventListener('submit', event => {
   alert('Donation added successfully.');
   event.target.reset();
 });
+
 // Fetch and display data upon donor login
 document.addEventListener('DOMContentLoaded', () => {
   renderDonationChart();
