@@ -1,8 +1,5 @@
-import { db } from './firebase.js';
-import { collection, addDoc, getDocs, doc, getDoc, setDoc } from "firebase/firestore";
-
-// Add default donations to Firestore
-async function addDefaultDonations() {
+// app.js
+function addDefaultDonations() {
   const defaultDonations = [
     { item: 'Food', amount: 100, location: 'Location A', date: new Date().toLocaleDateString() },
     { item: 'Water', amount: 200, location: 'Location B', date: new Date().toLocaleDateString() },
@@ -18,7 +15,7 @@ async function addDefaultDonations() {
 // Add data to Firestore
 async function addData(storeName, data) {
   try {
-    await addDoc(collection(db, storeName), data);
+    await db.collection(storeName).add(data);
     console.log(`Data added to ${storeName}`);
   } catch (e) {
     console.error(`Error adding data to ${storeName}`, e);
@@ -28,11 +25,12 @@ async function addData(storeName, data) {
 // Get data from Firestore
 async function getData(storeName, callback) {
   try {
-    const querySnapshot = await getDocs(collection(db, storeName));
+    const querySnapshot = await db.collection(storeName).get();
     const data = [];
     querySnapshot.forEach(doc => {
       data.push(doc.data());
     });
+    console.log(`Fetched data from ${storeName}:`, data);
     callback(data);
   } catch (e) {
     console.error(`Error retrieving data from ${storeName}`, e);
@@ -60,7 +58,7 @@ document.getElementById('registerForm').addEventListener('submit', async event =
   const role = formData.get('role');
 
   try {
-    await setDoc(doc(db, 'users', username), { username, password, role });
+    await db.collection('users').doc(username).set({ username, password, role });
     alert('Registration successful. Please log in.');
     showLogin();
     event.target.reset();
@@ -79,9 +77,9 @@ document.getElementById('loginForm').addEventListener('submit', async event => {
   const role = formData.get('role');
 
   try {
-    const docRef = doc(db, 'users', username);
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
+    const docRef = db.collection('users').doc(username);
+    const docSnap = await docRef.get();
+    if (docSnap.exists) {
       const user = docSnap.data();
       if (user.password === password && user.role === role) {
         console.log(`User logged in: ${username}, Role: ${role}`);
